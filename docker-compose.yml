@@ -1,0 +1,44 @@
+version: "3.9"
+
+services:
+  postgres:
+    # PostGIS-enabled image (required by the geolocation migrations V4+).
+    image: postgis/postgis:16-3.4
+    container_name: foodchain-postgres
+    environment:
+      POSTGRES_DB: foodchain
+      POSTGRES_USER: foodchain
+      POSTGRES_PASSWORD: foodchain
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U foodchain"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    container_name: foodchain-app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/foodchain
+      DB_USER: foodchain
+      DB_PASSWORD: foodchain
+      JWT_SECRET: Y2hhbmdlLW1lLXRoaXMtaXMtYS1kZXYtb25seS1zZWNyZXQtMjU2LWJpdHMtbG9uZy1rZXk=
+      JWT_EXPIRATION_MS: 86400000
+      SERVER_PORT: 8080
+      foodchain.payments.provider: mock
+      # Email (Resend) — set RESEND_API_KEY to enable real sending
+      MAIL_ENABLED: "true"
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      MAIL_FROM: ${MAIL_FROM:-FoodChain AI <onboarding@resend.dev>}
+    ports:
+      - "8080:8080"
+
+volumes:
+  postgres_data:
